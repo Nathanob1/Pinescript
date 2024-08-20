@@ -1,0 +1,54 @@
+//@version=5
+strategy(title="MACD with ATR-Based Stop Loss and Take Profit", overlay=true, default_qty_type=strategy.fixed)
+
+// Function to check if the strategy should be active
+strategyActive() =>
+    // Define the start and end timestamps using the correct format
+    startTimestamp = timestamp("2024-02-24 00:00")
+    endTimestamp = timestamp("2024-12-31 23:59")
+    // Return true if the current bar's time is between the start and end timestamps
+    time >= startTimestamp and time <= endTimestamp
+
+// IsNotLong() and IsNotShort() functions
+IsNotLong() =>
+    strategy.position_size <= 0
+
+IsNotShort() =>
+    strategy.position_size >= 0
+
+// Calculate MACD
+[macdLine, signalLine, histLine] = ta.macd(close, 6, 13, 5)
+
+// Plot MACD and signal line
+plot(macdLine, color=color.fuchsia, title="MACD")
+plot(signalLine, color=color.orange, title="Signal Line")
+hline(0, title="Zero Line")
+
+// Calculate trend filter using a 50-period simple moving average
+trendFilter = ta.sma(close, 20)
+
+// Calculate ATR for dynamic stop loss and take profit
+atrLength = 7
+atrValue = ta.atr(atrLength)
+
+// Define Stop Loss and Take Profit as multiples of ATR
+stopLossMultiplier = 0.5
+takeProfitMultiplier = 1.5
+
+stopLoss = atrValue * stopLossMultiplier
+takeProfit = atrValue * takeProfitMultiplier
+
+// Calculate trade size based on $100 USD
+tradeValueUSD = 100
+qty = tradeValueUSD / close
+
+// Entry conditions with ATR-based Stop Loss, Take Profit, and fixed $100 USD trade size
+if strategyActive() and close > trendFilter and ta.crossunder(macdLine, signalLine)
+    strategy.entry("Enter Long", strategy.long, qty=qty, stop=low - stopLoss, limit=high + takeProfit)
+
+if strategyActive() and close < trendFilter and ta.crossover(macdLine, signalLine)
+    strategy.entry("Enter Short", strategy.short, qty=qty, stop=high + stopLoss, limit=low - takeProfit)
+
+// Background and bar color based on position status
+bgcolor(color=IsNotLong() ? color.new(color.blue, 85) : color.new(color.green, 70))
+barcolor(color=IsNotShort() ? color.orange : color.red)
